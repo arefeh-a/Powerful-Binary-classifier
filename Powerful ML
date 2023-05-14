@@ -1,0 +1,57 @@
+import matplotlib.pyplot as plt
+import numpy as np
+from sklearn import model_selection
+from sklearn.linear_model import LogisticRegression
+from sklearn.tree import DecisionTreeClassifier
+from sklearn.neighbors import KNeighborsClassifier
+from sklearn.discriminant_analysis import LinearDiscriminantAnalysis
+from sklearn.naive_bayes import GaussianNB
+from sklearn.svm import SVC
+from sklearn.model_selection import train_test_split
+import matplotlib.pyplot as plt
+
+
+def index_2d(myList, v):
+    for i, x in enumerate(myList):
+        if v in x:
+            return i, x.index(v)
+
+
+def powerfullBinaryClassifier(G1, G2, classifierMethod, classifierParams, n_splitCv, cvMethod):
+    seed = 50
+    y1 = np.ones((G1.shape[0]))
+    # X_train1, X_test1, y_train1, y_test1 = train_test_split(G1, y1, test_size=0.30, random_state= seed)
+    y2 = np.zeros((G2.shape[0]))
+    # X_train2, X_test2, y_train2, y_test2 = train_test_split(G2, y2, test_size=0.30, random_state=seed)
+    X_train = np.concatenate((G1, G2), axis=0)
+    y_train = np.concatenate([y1, y2])
+    # kfold = model_selection.KFold(n_splits=n_splitCv, random_state=seed)
+
+    totalnsampls = G1.shape[0] + G2.shape[0]
+
+    models = [('LR', LogisticRegression()), ('LDA', LinearDiscriminantAnalysis()),
+              ('KNN', KNeighborsClassifier(n_neighbors=2)), ('CART', DecisionTreeClassifier()),
+              ('NB', GaussianNB()), ('SVM', SVC())]
+
+    results = []
+    t = index_2d(models, classifierMethod)
+    clf = models[t[0]][1]
+    scoring = ['accuracy', "recall", "precision", "f1"]
+
+    if cvMethod == "kfold":
+        for scoringMethod in scoring:
+            kfold = model_selection.StratifiedKFold(n_splits=n_splitCv)
+            cv_results = model_selection.cross_val_score(clf, X_train, y_train, cv=kfold, scoring=scoringMethod,
+                                                         fit_params=classifierParams)
+            results.append(cv_results)
+            msg = "%s %s: %f (%f)" % (classifierParams, t[0], cv_results.mean(), cv_results.std())
+            print(msg)
+
+    elif cvMethod == "loocv":
+        for scoringMethod in scoring:
+            loocv = model_selection.LeaveOneOut(totalnsampls)
+            cv_results = model_selection.cross_val_score(clf, X_train, y_train, cv=loocv, scoring=scoringMethod,
+                                                         fit_params=classifierParams)
+            results.append(cv_results)
+            msg = "model %s with parameters %s: %f (%f)" % (models[t[0]][0], classifierParams, cv_results.mean(), cv_results.std())
+            print(msg)
